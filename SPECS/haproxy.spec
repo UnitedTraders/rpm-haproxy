@@ -84,6 +84,7 @@ systemd_opts=
 pcre_opts="USE_PCRE=1"
 USE_TFO=
 USE_NS=
+USE_LUA=
 
 %if 0%{?el7} || 0%{?amzn2}
 systemd_opts="USE_SYSTEMD=1"
@@ -95,7 +96,7 @@ USE_TFO=1
 USE_NS=1
 %endif
 
-%{__make} -j$RPM_BUILD_NCPUS %{?_smp_mflags} CPU="generic" TARGET="linux-glibc" ${systemd_opts} ${pcre_opts} USE_OPENSSL=1 USE_ZLIB=1 ${regparm_opts} ADDINC="%{optflags}" USE_LINUX_TPROXY=1 USE_THREAD=1 USE_TFO=${USE_TFO} USE_NS=${USE_NS} ADDLIB="%{__global_ldflags}"
+%{__make} -j$RPM_BUILD_NCPUS %{?_smp_mflags} CPU="generic" TARGET="linux-glibc" ${systemd_opts} ${pcre_opts} USE_OPENSSL=1 USE_ZLIB=1 ${regparm_opts} ADDINC="%{optflags}" USE_LINUX_TPROXY=1 USE_THREAD=1 USE_TFO=${USE_TFO} USE_NS=${USE_NS} USE_LUA=${USE_LUA} ADDLIB="%{__global_ldflags}"  EXTRA_OBJS="contrib/prometheus-exporter/service-prometheus.o"
 
 %install
 [ "%{buildroot}" != "/" ] && %{__rm} -rf %{buildroot}
@@ -110,21 +111,10 @@ USE_NS=1
 
 %{__install} -s %{name} %{buildroot}%{_sbindir}/
 
-%{__install} -c -m 644 %{SOURCE1} %{buildroot}%{_sysconfdir}/%{name}/haproxy.cfg
 %{__install} -c -m 755 examples/errorfiles/*.http %{buildroot}%{_sysconfdir}/%{name}/errors/
 %{__install} -c -m 755 doc/%{name}.1 %{buildroot}%{_mandir}/man1/
 %{__install} -c -m 755 %{SOURCE4} %{buildroot}%{_sysconfdir}/rsyslog.d/49-%{name}.conf
 %{__install} -c -m 755 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
-
-%if 0%{?el6} || 0%{?amzn1}
-%{__install} -d %{buildroot}%{_sysconfdir}/rc.d/init.d
-%{__install} -c -m 755 %{SOURCE2} %{buildroot}%{_sysconfdir}/rc.d/init.d/%{name}
-%endif
-
-%if 0%{?el7} || 0%{?amzn2}
-%{__install} -s %{name} %{buildroot}%{_sbindir}/
-%{__install} -p -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/%{name}.service
-%endif
 
 %clean
 [ "%{buildroot}" != "/" ] && %{__rm} -rf %{buildroot}
@@ -148,18 +138,6 @@ systemctl restart rsyslog.service
 /sbin/service rsyslog restart >/dev/null 2>&1 || :
 %endif
 
-%preun
-%if 0%{?el7} || 0%{?amzn2}
-%systemd_preun %{name}.service
-%endif
-
-%if 0%{?el6} || 0%{?amzn1}
-if [ $1 = 0 ]; then
-  /sbin/service %{name} stop >/dev/null 2>&1 || :
-  /sbin/chkconfig --del %{name}
-fi
-%endif
-
 %postun
 %if 0%{?el7} || 0%{?amzn2}
 %systemd_postun_with_restart %{name}.service
@@ -179,21 +157,16 @@ fi
 %doc %{_mandir}/man1/%{name}.1*
 %dir %{_sysconfdir}/%{name}
 %{_sysconfdir}/%{name}/errors
-%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/%{name}/%{name}.cfg
 %attr(0755,root,root) %{_sbindir}/%{name}
 %dir %{_localstatedir}/log/%{name}
 %attr(0644,root,root) %config %{_sysconfdir}/logrotate.d/%{name}
 %attr(0644,root,root) %config %{_sysconfdir}/rsyslog.d/49-%{name}.conf
 
-%if 0%{?el6} || 0%{?amzn1}
-%attr(0755,root,root) %config %_sysconfdir/rc.d/init.d/%{name}
-%endif
-
-%if 0%{?el7} || 0%{?amzn2}
-%attr(-,root,root) %{_unitdir}/%{name}.service
-%endif
 
 %changelog
+* Fri Oct 11 2019 Anton Markelov <a.markelov@unitedtraders.com>
+- Adapt build for UnitedTraders requirements
+
 * Tue Jun 18 2019 David Bezemer <info@davidbezemer.nl>
 - First build of HAproxy 2.0.0
 
